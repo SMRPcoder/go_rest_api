@@ -10,6 +10,8 @@ import (
 
 func main() {
 	fmt.Println("Hii Hello World")
+	fmt.Println("Hii Hello World2")
+
 	database.Connetion()
 
 	app := fiber.New()
