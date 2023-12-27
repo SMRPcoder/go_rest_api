@@ -1,11 +1,11 @@
 package controller
 
 import (
-	"fmt"
-
 	"github.com/SMRPcoder/go_rest_api/database"
+	"github.com/SMRPcoder/go_rest_api/functions"
 	"github.com/SMRPcoder/go_rest_api/models"
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func Register(c *fiber.Ctx) error {
@@ -25,14 +25,27 @@ func Register(c *fiber.Ctx) error {
 
 func Login(c *fiber.Ctx) error {
 
-	var user models.User
-	if err := c.BodyParser(&user); err != nil {
+	var requser models.User
+	if err := c.BodyParser(&requser); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid JSON"})
 	}
+	var user models.User
+	result := database.DB.Where("username = ?", requser.Username).First(&user)
+	if result.Error != nil {
+		// log.Fatal(result.Error)
+		return c.Status(200).JSON(fiber.Map{"message": "User Not Found", "status": false})
+	}
 
-	result := database.DB.Where("username = ?", user.Username).First(&user)
-	fmt.Println(result)
-	c.Status(200).JSON(fiber.Map{"message": "logged in successfully", "user": user, "status": true})
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(requser.Password))
+	if err != nil {
+		return c.Status(200).JSON(fiber.Map{"message": "Password Missmatch", "status": false})
+	}
+
+	token, err := functions.EncodeJwt(functions.JWTUser{ID: user.ID, Username: user.Username, Name: user.Name})
+	if err != nil {
+		return c.Status(200).JSON(fiber.Map{"message": err, "status": false})
+	}
+	c.Status(200).JSON(fiber.Map{"message": "logged in successfully", "token": "Bearar " + token, "status": true})
 	return nil
 
 }
